@@ -1,0 +1,5 @@
+Class: 1, Probabilities: [0.00030450295889750123, 0.9996955394744873], Open set flag: [False]
+Class: 1, Probabilities: [8.75225305208005e-05, 0.9999125003814697], Open set flag: [False]
+Class: 1, Probabilities: [0.00033097557025030255, 0.999669075012207], Open set flag: [False]
+Class: 1, Probabilities: [0.0036002506967633963, 0.9963997602462769], Open set flag: [False]
+Class: 1, Probabilities: [0.00021574545826297253, 0.9997842907905579], Open set flag: [False]
