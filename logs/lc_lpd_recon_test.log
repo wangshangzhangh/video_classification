@@ -1,0 +1,18 @@
+INFO:root:Outputs: tensor([[-5.5458,  5.6996],
+        [-5.5694,  5.8213],
+        [-5.5275,  5.7495],
+        [-4.5664,  4.2167],
+        [-4.0361,  4.0133],
+        [-3.0429,  2.8398],
+        [-2.4173,  2.2716]], device='cuda:0'), Open set output: tensor([[-9.8528],
+        [-9.8476],
+        [-9.7028],
+        [-9.5875],
+        [-9.7303],
+        [-9.5145],
+        [-9.3817]], device='cuda:0')
+INFO:root:Open set loss: 6.444114114856347e-05
+INFO:root:Class 0 count: 0, Ratio: 0.0000
+INFO:root:Class 1 count: 7, Ratio: 1.0000
+INFO:root:Open set (unknown) count: 0, Ratio: 0.0000
+INFO:root:Probabilities saved to data/predicts.txt

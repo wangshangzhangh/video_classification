@@ -8,6 +8,8 @@ from torchvision import transforms, models
 from PIL import Image
 import numpy as np
 import logging
+from model import OpenSetModel
+from dataset import SurgeryDataset
 
 # 设置日志文件
 # 定义日志目录和文件路径
@@ -19,22 +21,6 @@ if os.path.exists(log_file):
 # 如果目录不存在，则创建
 os.makedirs(log_dir, exist_ok=True)
 logging.basicConfig(level=logging.INFO, filename='logs/lc_lpd_recon_train.log')
-
-# 自定义数据集类
-class SurgeryDataset(Dataset):
-    def __init__(self, data, transform=None):
-        self.data = data
-        self.transform = transform
-
-    def __len__(self):
-        return len(self.data)
-
-    def __getitem__(self, idx):
-        img_path, label = self.data[idx]
-        image = Image.open(img_path).convert('RGB')
-        if self.transform:
-            image = self.transform(image)
-        return image, label
 
 # 定义数据转换
 data_transforms = {
@@ -70,22 +56,6 @@ val_dataset = SurgeryDataset(val_data, transform=data_transforms['val'])
 train_loader = DataLoader(train_dataset, batch_size=512, shuffle=True, num_workers=40)
 val_loader = DataLoader(val_dataset, batch_size=512, shuffle=False, num_workers=40)
 
-# 定义模型架构
-class OpenSetModel(nn.Module):
-    def __init__(self, num_classes=2):
-        super(OpenSetModel, self).__init__()
-        resnet = models.resnet18(pretrained=True)
-        self.feature_extractor = nn.Sequential(*list(resnet.children())[:-1])
-        self.classifier = nn.Linear(resnet.fc.in_features, num_classes)
-        self.open_set_layer = nn.Linear(resnet.fc.in_features, 1)  # For open set detection
-
-    def forward(self, x):
-        features = self.feature_extractor(x)
-        features = features.view(features.size(0), -1)
-        class_outputs = self.classifier(features)
-        open_set_output = self.open_set_layer(features)
-        return class_outputs, open_set_output
-
 # 初始化模型
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 model = OpenSetModel(num_classes=2)
@@ -96,19 +66,19 @@ optimizer = torch.optim.Adam(model.parameters(), lr=0.001)
 
 def adjust_loss_weights(class_loss, open_set_loss):
     # 根据具体情况调整权重
-    class_weight = 1.0
-    open_set_weight = 1.0
+    class_weight = 0.5
+    open_set_weight = 1.5
 
-    # 动态调整权重
-    if class_loss > open_set_loss:
-        class_weight = open_set_loss / class_loss
-    else:
-        open_set_weight = class_loss / open_set_loss
+    # # 动态调整权重
+    # if class_loss > open_set_loss:
+    #     class_weight = open_set_loss / class_loss
+    # else:
+    #     open_set_weight = class_loss / open_set_loss
 
     return class_weight, open_set_weight
 
 # 训练过程
-def train_model(model, train_loader, val_loader, criterion, optimizer, num_epochs=20, open_set_threshold=0.5):
+def train_model(model, train_loader, val_loader, criterion, optimizer, num_epochs=1):
     best_model_wts = model.state_dict()
     best_acc = 0.0
 
@@ -135,13 +105,12 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, num_epoch
                 optimizer.zero_grad()
                 with torch.set_grad_enabled(phase == 'train'):
                     class_outputs, open_set_output = model(inputs)
+                    logging.info(f'Open set output: {open_set_output}')
                     _, preds = torch.max(class_outputs, 1)
                     class_loss = criterion(class_outputs, labels)
-
                     # Open set loss
                     open_set_labels = torch.zeros_like(open_set_output)
                     open_set_loss = F.binary_cross_entropy_with_logits(open_set_output, open_set_labels)
-                    logging.info(f"class_loss: {class_loss.item()}, open_set_loss: {open_set_loss.item()}")
                     # 动态调整损失权重
                     class_weight, open_set_weight = adjust_loss_weights(class_loss.item(), open_set_loss.item())
                     loss = class_weight * class_loss + open_set_weight * open_set_loss
@@ -171,7 +140,7 @@ def train_model(model, train_loader, val_loader, criterion, optimizer, num_epoch
     model.load_state_dict(best_model_wts)
     return model
 
-model = train_model(model, train_loader, val_loader, criterion, optimizer, num_epochs=25)
+model = train_model(model, train_loader, val_loader, criterion, optimizer, num_epochs=20)
 
 # 保存模型
-torch.save(model.state_dict(), 'model/lc_lpd_recon_model.pth')
+torch.save(model, 'saved_model/lc_lpd_recon_model_full.pth')
